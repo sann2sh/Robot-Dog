@@ -5,14 +5,14 @@
 #include <Adafruit_PWMServoDriver.h>
 
 // Joint channel mappings
-#define KNEE_JOINT 3
-#define HIP_LEG_JOINT    2
-#define HIP_BODY_JOINT   1
+#define KNEE_JOINT 2
+#define HIP_LEG_JOINT    1
+#define HIP_BODY_JOINT   0
 
-#define LEG_1 1
-#define LEG_2 2
-#define LEG_3 3
-#define LEG_4 4
+#define LEG_1 0
+#define LEG_2 1
+#define LEG_3 2
+#define LEG_4 3
 
 // Joint Pulse Limits
 #define KNEE_JOINT_PULSE_MIN        220
