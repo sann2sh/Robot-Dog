@@ -13,9 +13,9 @@ void loop() {
     int hipLeg = Serial.parseInt();
     int hipBody = Serial.parseInt();
 
-    moveJoint(KNEE_JOINT, knee);
-    moveJoint(HIP_LEG_JOINT, hipLeg);
-    moveJoint(HIP_BODY_JOINT, hipBody);
+    moveLeg(LEG_1, KNEE_JOINT, knee);
+    moveLeg(LEG_1, HIP_LEG_JOINT, hipLeg);
+    moveLeg(LEG_1, HIP_BODY_JOINT, hipBody);
 
     Serial.read();
 
