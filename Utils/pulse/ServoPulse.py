@@ -42,12 +42,15 @@ def slider_changed(val, idx):
     send_raw_pulse(idx, pulse)
 
 
+
 def step_pulse(idx, direction):
     current_val = servo_vars[idx].get()
     new_val = max(0, min(1000, current_val + direction))
     servo_vars[idx].set(new_val)
     sliders[idx].set(new_val)
     send_raw_pulse(idx, new_val)
+    entry_updated(idx)
+
 
 
 def entry_updated(idx):
@@ -57,6 +60,7 @@ def entry_updated(idx):
         servo_vars[idx].set(val)
         sliders[idx].set(val)
         send_raw_pulse(idx, val)
+        
     except ValueError:
         pass
 
