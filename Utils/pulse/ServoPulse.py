@@ -1,12 +1,18 @@
+import os
+import sys
 import time
 import tkinter as tk
 from tkinter import ttk
 
 import serial
 
-# Update this to your Arduino's serial port
-SERIAL_PORT = "COM8"
-BAUD_RATE = 9600
+# Add the parent directory to the system path
+config_dir = os.path.abspath(os.path.join(__file__, "../../.."))
+sys.path.append(config_dir)
+
+# Import the config module
+from config import BAUD_RATE
+from config import SERIAL_PORT
 
 # Open serial connection
 try:

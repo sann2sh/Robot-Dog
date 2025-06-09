@@ -1,12 +1,18 @@
+import os
+import sys
 import time
 import tkinter as tk
 from tkinter import ttk
 
 import serial
 
-# === Serial Setup ===
-SERIAL_PORT = "COM8"
-BAUD_RATE = 9600
+# Add the parent directory to the system path
+config_dir = os.path.abspath(os.path.join(__file__, "../../.."))
+sys.path.append(config_dir)
+
+# Import the config module
+from config import BAUD_RATE
+from config import SERIAL_PORT
 
 try:
     ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
@@ -32,11 +38,10 @@ LABEL_FONT = ("Arial", 14)
 BUTTON_FONT = ("Arial", 14)
 MIDPOINT_FONT = ("Arial", 18, "bold")
 
-# === Constants ===
-JOINT_NAMES = ["Knee", "Hip-Leg", "Hip-Body"]
-JOINT_RANGES = [(0, 150), (-247, -43), (-43, 37)]
-NUM_LEGS = 4
-NUM_JOINTS = 3
+from config import JOINT_NAMES
+from config import JOINT_RANGES
+from config import NUM_JOINTS
+from config import NUM_LEGS
 
 # === Storage for UI elements ===
 sliders = [[None for _ in range(NUM_JOINTS)] for _ in range(NUM_LEGS)]

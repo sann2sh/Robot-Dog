@@ -1,12 +1,14 @@
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
 
+#define SERVO_FREQ 50 // Analog servos run at ~50 Hz updates
+
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 void setup() {
   Serial.begin(9600);
   pwm.begin();
-  pwm.setPWMFreq(60);
+  pwm.setPWMFreq(SERVO_FREQ);
 }
 
 void loop() {

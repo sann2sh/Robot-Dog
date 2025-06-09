@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <Adafruit_PWMServoDriver.h>
 
+#define SERVO_FREQ 50 // Analog servos run at ~50 Hz updates
+
 // Joint channel mappings
 #define KNEE_JOINT 2
 #define HIP_LEG_JOINT    1

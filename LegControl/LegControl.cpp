@@ -4,7 +4,8 @@ Adafruit_PWMServoDriver servoBoard = Adafruit_PWMServoDriver(0x40);
 
 void initializeLeg() {
   servoBoard.begin();
-  servoBoard.setPWMFreq(60);
+  servoBoard.setPWMFreq(SERVO_FREQ); // Analog servos run at ~50 Hz updates
+  delay(10); // Allow time for the servo board to initialize
 
   for (int leg = 0; leg <= 3; leg++) {
     for (int joint = 0; joint <= 2; joint++) {
