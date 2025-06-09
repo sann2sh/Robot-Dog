@@ -17,12 +17,9 @@
 #define LEG_4 3
 
 // Joint Pulse Limits
-#define KNEE_JOINT_PULSE_MIN        220
-#define KNEE_JOINT_PULSE_MAX        657
-#define HIP_LEG_JOINT_PULSE_MIN     100
-#define HIP_LEG_JOINT_PULSE_MAX     700
-#define HIP_BODY_JOINT_PULSE_MIN    300
-#define HIP_BODY_JOINT_PULSE_MAX    540
+#define PULSE_MIN        100 // 0 DEGREES
+#define PULSE_MAX        530 // 180 DEGREES
+
 
 // Joint Angle Limits
 #define KNEE_JOINT_ANGLE_MIN        0// 75 mid point
