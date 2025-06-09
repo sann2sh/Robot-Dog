@@ -1,0 +1,327 @@
+import os
+import sys
+import time
+
+import matplotlib.pyplot as plt
+import numpy as np
+import serial
+from matplotlib.widgets import Button
+from matplotlib.widgets import Slider
+
+# Add the parent directory to the system path
+config_dir = os.path.abspath(os.path.join(__file__, "../../.."))
+sys.path.append(config_dir)
+
+# Import the config module
+from config import BAUD_RATE
+from config import SERIAL_PORT
+
+try:
+    ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+    time.sleep(2)
+except Exception as e:
+    ser = None
+    print(f"⚠️ Could not connect to serial port: {e}")
+
+from config import HIP_KNEE_LENGTH
+from config import JOINT_ANGLES_INIT
+from config import JOINT_NAMES
+from config import JOINT_RANGES
+from config import KNEE_FOOT_LENGTH
+from config import NUM_JOINTS
+from config import NUM_LEGS
+
+
+# Compute offset for (0, 0) at midpoint angles
+def forward_kinematics(knee_joint_angle, hip_leg_joint_angle, apply_offset=False):
+    theta1 = np.radians(hip_leg_joint_angle)
+    theta2 = np.radians(knee_joint_angle)
+    x1 = HIP_KNEE_LENGTH * np.cos(theta1)
+    y1 = HIP_KNEE_LENGTH * np.sin(theta1)
+    x2 = x1 + KNEE_FOOT_LENGTH * np.cos(theta1 + theta2)
+    y2 = y1 + KNEE_FOOT_LENGTH * np.sin(theta1 + theta2)
+    if apply_offset:
+        x2 -= offset_x
+        y2 -= offset_y
+    return x1, y1, x2, y2
+
+
+# Calculate offset based on midpoint angles
+# offset_x, offset_y = forward_kinematics(
+#     JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], apply_offset=False
+# )
+
+offset_x = 0
+offset_y = 0
+
+# ==== Set up Plot ====
+fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+plt.subplots_adjust(
+    left=0.05, right=0.95, top=0.95, bottom=0.35, wspace=0.2, hspace=0.2
+)
+
+# Storage for plot elements and sliders
+lines = [[None for _ in range(2)] for _ in range(2)]
+target_dots = [[None for _ in range(2)] for _ in range(2)]
+sliders = [[None for _ in range(4)] for _ in range(NUM_LEGS)]  # Knee, Hip, X, Y per leg
+buttons = [None for _ in range(NUM_LEGS)]  # Reset buttons per leg
+dragging = [False for _ in range(NUM_LEGS)]
+ignore_slider_callback = [False for _ in range(NUM_LEGS)]
+
+# ==== Initialize Subplots ====
+for leg in range(NUM_LEGS):
+    row = leg // 2
+    col = leg % 2
+    ax = axes[row, col]
+    ax.set_aspect("equal")
+    ax.set_xlim(-250 - offset_x, 250 - offset_x)  # Adjust plot limits for offset
+    ax.set_ylim(-400 - offset_y, 100 - offset_y)
+    ax.set_title(f"Leg {leg+1}")
+    (lines[row][col],) = ax.plot([], [], "o-", lw=4, markersize=8, color="blue")
+    (target_dots[row][col],) = ax.plot([], [], "rx", markersize=10)
+
+
+# ==== Draw Robot Leg ====
+def update_leg(leg, knee_joint_angle, hip_leg_joint_angle):
+    x0, y0 = 0, 0
+
+    x1, y1, x2, y2 = forward_kinematics(
+        knee_joint_angle, hip_leg_joint_angle, apply_offset=True
+    )
+
+    row = leg // 2
+    col = leg % 2
+
+    # Apply offset for display
+    x2_display = x2 - offset_x
+    y2_display = y2 - offset_y
+
+    lines[row][col].set_data([x0, x1, x2], [y0, y1, y2])
+    target_dots[row][col].set_data([x2_display], [y2_display])
+    fig.canvas.draw_idle()
+
+
+# ==== Send Angles to Arduino ====
+def send_all_angles():
+    if any(ignore_slider_callback):
+        return
+    values = []
+    for leg in range(NUM_LEGS):
+        try:
+            theta_knee = sliders[leg][0].val  # Knee
+            theta_hip = sliders[leg][1].val  # Hip-Leg
+            values.extend(
+                [str(int(theta_knee)), str(int(theta_hip)), "0"]
+            )  # Hip-Body=0
+        except Exception as e:
+            print(f"Error processing angles for Leg {leg+1}: {e}")
+            values.extend(["0", "0", "0"])
+    command = " ".join(values) + "\n"
+    if ser and ser.is_open:
+        try:
+            ser.write(command.encode())
+            print(f"Sent: {command.strip()}")
+        except Exception as e:
+            print(f"Serial error: {e}")
+    else:
+        print(f"Error: Serial port {SERIAL_PORT} not available")
+
+
+# ==== Inverse Kinematics ====
+def inverse_kinematics(x, y):
+    # Convert display coordinates back to original coordinates
+    x_orig = x + offset_x
+    y_orig = y + offset_y
+    D = (x_orig**2 + y_orig**2 - HIP_KNEE_LENGTH**2 - KNEE_FOOT_LENGTH**2) / (
+        2 * HIP_KNEE_LENGTH * KNEE_FOOT_LENGTH
+    )
+    if np.abs(D) > 1.0:
+        return None, None
+    theta_knee = np.arccos(D)  # Knee (θ1)
+    theta_hip = np.arctan2(y_orig, x_orig) - np.arctan2(
+        KNEE_FOOT_LENGTH * np.sin(theta_knee),
+        HIP_KNEE_LENGTH + KNEE_FOOT_LENGTH * np.cos(theta_knee),
+    )
+    return np.degrees(theta_knee), np.degrees(theta_hip)
+
+
+# ==== Slider and Mouse Handlers ====
+def on_slider_change(leg):
+    def handler(val):
+        if ignore_slider_callback[leg]:
+            return
+        t1 = sliders[leg][0].val  # Knee
+        t2 = sliders[leg][1].val  # Hip
+        # Update leg plot
+        update_leg(leg, t1, t2)
+        # Compute forward kinematics to get new X, Y (with offset)
+        x1, y1, x2, y2 = forward_kinematics(t1, t2, apply_offset=False)
+        # Update X, Y sliders
+        ignore_slider_callback[leg] = True  # Prevent recursive updates
+        sliders[leg][2].set_val(x2)  # Target X
+        sliders[leg][3].set_val(y2)  # Target Y
+        ignore_slider_callback[leg] = False
+        # Send angles to Arduino
+        send_all_angles()
+
+    return handler
+
+
+def on_xy_change(leg):
+    def handler(val):
+        if ignore_slider_callback[leg]:
+            return
+        x = sliders[leg][2].val  # Target X (display coordinates)
+        y = sliders[leg][3].val  # Target Y (display coordinates)
+        apply_ik_and_update(leg, x, y)
+
+    return handler
+
+
+def on_press(event):
+    for leg in range(NUM_LEGS):
+        row = leg // 2
+        col = leg % 2
+        if event.inaxes == axes[row, col]:
+            dragging[leg] = True
+            break
+
+
+def on_release(event):
+    for leg in range(NUM_LEGS):
+        dragging[leg] = False
+
+
+def on_motion(event):
+    for leg in range(NUM_LEGS):
+        row = leg // 2
+        col = leg % 2
+        if dragging[leg] and event.inaxes == axes[row, col]:
+            x, y = event.xdata, event.ydata  # Display coordinates
+            apply_ik_and_update(leg, x, y)
+            break
+
+
+def on_click(event):
+    for leg in range(NUM_LEGS):
+        row = leg // 2
+        col = leg % 2
+        if event.inaxes == axes[row, col]:
+            x, y = event.xdata, event.ydata  # Display coordinates
+            apply_ik_and_update(leg, x, y)
+            break
+
+
+def apply_ik_and_update(leg, x, y):
+    global ignore_slider_callback
+    theta_knee_deg, theta_hip_deg = inverse_kinematics(x, y)
+    if theta_knee_deg is None:
+        print(f"Leg {leg+1}: Target out of reach.")
+        return
+    theta_knee_deg = np.clip(theta_knee_deg, JOINT_RANGES[0][0], JOINT_RANGES[0][1])
+    theta_hip_deg = np.clip(theta_hip_deg, JOINT_RANGES[1][0], JOINT_RANGES[1][1])
+    ignore_slider_callback[leg] = True
+    sliders[leg][0].set_val(theta_knee_deg)  # Knee
+    sliders[leg][1].set_val(theta_hip_deg)  # Hip-Leg
+    sliders[leg][2].set_val(x)  # Target X (display)
+    sliders[leg][3].set_val(y)  # Target Y (display)
+    ignore_slider_callback[leg] = False
+    update_leg(leg, theta_knee_deg, theta_hip_deg)
+    send_all_angles()
+
+
+# ==== Reset Button Handler ====
+def reset_angles(leg):
+    global ignore_slider_callback
+    ignore_slider_callback[leg] = True
+    sliders[leg][0].set_val(JOINT_ANGLES_INIT[0])  # Reset Knee to 75
+    sliders[leg][1].set_val(JOINT_ANGLES_INIT[1])  # Reset Hip to -145
+    sliders[leg][2].set_val(
+        forward_kinematics(
+            JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], apply_offset=False
+        )[2]
+        - offset_x
+    )  # Reset Target X to 0 (display coordinates)
+    sliders[leg][3].set_val(
+        forward_kinematics(
+            JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], apply_offset=False
+        )[3]
+        - offset_y
+    )  # Reset Target Y to 0 (display coordinates)
+    ignore_slider_callback[leg] = False
+    update_leg(leg, JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1])
+    send_all_angles()
+
+
+# ==== Create Sliders and Buttons ====
+for leg in range(NUM_LEGS):
+    row = leg // 2
+    col = leg % 2
+    # Place sliders below each quadrant, aligned with subplot
+    base_x = 0.05 + col * 0.55 + 0.1  # Left edge of each quadrant
+    base_y = 0.28 - row * 0.15  # Space below each row
+    ax_theta1 = plt.axes([base_x, base_y - 0.00, 0.25, 0.02])
+    ax_theta2 = plt.axes([base_x, base_y - 0.02, 0.25, 0.02])
+    ax_x = plt.axes([base_x, base_y - 0.04, 0.25, 0.02])
+    ax_y = plt.axes([base_x, base_y - 0.06, 0.25, 0.02])
+    ax_reset = plt.axes([base_x, base_y - 0.115, 0.25, 0.03])  # Button below sliders
+
+    sliders[leg][0] = Slider(
+        ax_theta1,
+        f"Leg {leg+1} Knee Angle",
+        JOINT_RANGES[0][0],
+        JOINT_RANGES[0][1],
+        valinit=JOINT_ANGLES_INIT[0],  # Initial knee angle
+    )
+    sliders[leg][1] = Slider(
+        ax_theta2,
+        f"Leg {leg+1} Hip Angle",
+        JOINT_RANGES[1][0],
+        JOINT_RANGES[1][1],
+        valinit=JOINT_ANGLES_INIT[1],  # Initial hip angle
+    )
+    sliders[leg][2] = Slider(
+        ax_x,
+        f"Leg {leg+1} Target X",
+        -200 - offset_x,
+        200 - offset_x,
+        valinit=forward_kinematics(
+            JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], apply_offset=False
+        )[2]
+        - offset_x,
+    )
+    sliders[leg][3] = Slider(
+        ax_y,
+        f"Leg {leg+1} Target Y",
+        -400 - offset_y,
+        100 - offset_y,
+        valinit=forward_kinematics(
+            JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], apply_offset=False
+        )[3]
+        - offset_y,
+    )
+
+    sliders[leg][0].on_changed(on_slider_change(leg))
+    sliders[leg][1].on_changed(on_slider_change(leg))
+    sliders[leg][2].on_changed(on_xy_change(leg))
+    sliders[leg][3].on_changed(on_xy_change(leg))
+
+    # Add reset button
+    buttons[leg] = Button(ax_reset, f"Reset Leg {leg+1}")
+    buttons[leg].on_clicked(lambda x, l=leg: reset_angles(l))
+
+# ==== Register Events ====
+fig.canvas.mpl_connect("button_press_event", on_press)
+fig.canvas.mpl_connect("motion_notify_event", on_motion)
+fig.canvas.mpl_connect("button_release_event", on_release)
+fig.canvas.mpl_connect("button_press_event", on_click)
+
+# ==== Initial Draw ====
+for leg in range(NUM_LEGS):
+    update_leg(leg, JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1])
+
+plt.show()
+
+# ==== Cleanup ====
+if ser and ser.is_open:
+    ser.close()
