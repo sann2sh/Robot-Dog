@@ -77,16 +77,17 @@ def send_all_leg_data():
                 offset = float(offset_str) if offset_str.strip() else 0.0
                 total = int(angle + offset)
                 min_val, max_val = JOINT_RANGES[j]
-                total = min(max(total, min_val), max_val)  # Clamp to valid range
+                total = min(max(total, min_val), max_val)
                 values.append(str(total))
             except ValueError:
-                values.append(
-                    str(int(sliders[leg][j].get()))
-                )  # Fallback to slider value
+                values.append(str(int(sliders[leg][j].get())))
             except Exception as e:
                 status_var.set(f"Error in send_all_leg_data: {e}")
                 values.append("0")
-    command = " ".join(values) + "\n"
+    
+    # Format as: <val1,val2,...,valN>
+    command = "<" + ",".join(values) + ">\n"
+    
     if ser and ser.is_open:
         try:
             ser.write(command.encode("utf-8"))
@@ -95,7 +96,9 @@ def send_all_leg_data():
             status_var.set(f"Serial Error: {e}")
     else:
         status_var.set(f"Error: Serial port {SERIAL_PORT} not available")
+    
     print("Sent:", command.strip())
+
 
 
 # === Callback for slider move ===
@@ -191,7 +194,7 @@ for leg in range(NUM_LEGS):
             from_=min_val,
             to=max_val,
             orient="horizontal",
-            length=180,
+            length=max_val-min_val,
             command=lambda val, l=leg, jj=j: on_slider_change(val, l, jj),
         )
         slider.set(mid_val)
