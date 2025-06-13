@@ -5,6 +5,11 @@ import tkinter as tk
 from tkinter import ttk
 
 import serial
+pulse_max=530
+pulse_min=100
+
+pulse_for_zero_deg=100
+pulse_for_180_deg=530
 
 # Add the parent directory to the system path
 config_dir = os.path.abspath(os.path.join(__file__, "../../.."))
@@ -23,8 +28,8 @@ except serial.SerialException:
     ser = None
 
 def pulse_to_angle(pulse):
-    # Map pulse from range 100–530 to 0–180 degrees
-    return round((pulse - 100) * 180 / (530 - 100))
+    # Map pulse from range pulse_max to pulse_min to 0-180
+    return round((pulse - pulse_for_zero_deg) * 180 / (pulse_for_180_deg - pulse_for_zero_deg))
 
 def update_angle_label(idx, pulse):
     angle = pulse_to_angle(pulse)
@@ -32,7 +37,7 @@ def update_angle_label(idx, pulse):
 
 def send_raw_pulse(servo_id, pulse):
     pulse = int(float(pulse))
-    pulse = max(100, min(530, pulse))  # Updated range
+    pulse = max(pulse_min, min(pulse_max, pulse))  # limitting between max and min values
     if ser:
         command = f"{servo_id}:{pulse}\n"
         ser.write(command.encode("utf-8"))
@@ -50,7 +55,7 @@ def slider_changed(val, idx):
 
 def step_pulse(idx, direction):
     current_val = servo_vars[idx].get()
-    new_val = max(100, min(530, current_val + direction))
+    new_val = max(pulse_min, min(pulse_max, current_val + direction))
     servo_vars[idx].set(new_val)
     sliders[idx].set(new_val)
     send_raw_pulse(idx, new_val)
@@ -59,7 +64,7 @@ def step_pulse(idx, direction):
 def entry_updated(idx):
     try:
         val = int(entry_boxes[idx].get())
-        val = max(100, min(530, val))
+        val = max(pulse_min, min(pulse_max, val))
         servo_vars[idx].set(val)
         sliders[idx].set(val)
         send_raw_pulse(idx, val)
@@ -71,7 +76,7 @@ root = tk.Tk()
 root.title("Servo Pulse Calibrator")
 root.geometry("1100x500")  # Slightly wider for angle labels
 
-initial_value = 425
+initial_value = (pulse_max + pulse_min)/2
 servo_vars = [tk.IntVar(value=initial_value) for _ in range(3)]
 value_labels = []
 entry_boxes = []
@@ -90,11 +95,11 @@ for i in range(3):
 
     slider = ttk.Scale(
         root,
-        from_=100,
-        to=530,
+        from_=pulse_min,
+        to=pulse_max,
         orient="horizontal",
         variable=servo_vars[i],
-        length=500,
+        length=pulse_max-pulse_min,
         command=lambda val, idx=i: slider_changed(val, idx),
     )
     slider.grid(row=i, column=1, padx=10, pady=25)

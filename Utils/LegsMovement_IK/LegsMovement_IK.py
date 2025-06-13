@@ -1,11 +1,13 @@
 import os
 import sys
 import time
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
 import serial
 from matplotlib.widgets import Button
+from matplotlib.widgets import CheckButtons
 from matplotlib.widgets import Slider
 
 # Add the parent directory to the system path
@@ -34,15 +36,24 @@ from config import NUM_LEGS
 
 # Compute offset for (0, 0) at midpoint angles
 def forward_kinematics(knee_joint_angle, hip_leg_joint_angle, apply_offset=False):
-    theta1 = np.radians(hip_leg_joint_angle)
-    theta2 = np.radians(knee_joint_angle)
+    theta1 = np.radians(hip_leg_joint_angle)  # Hip angle from X-axis
+    theta2 = np.radians(knee_joint_angle)  # Inner knee angle
+
+    # Position of knee
     x1 = HIP_KNEE_LENGTH * np.cos(theta1)
     y1 = HIP_KNEE_LENGTH * np.sin(theta1)
-    x2 = x1 + KNEE_FOOT_LENGTH * np.cos(theta1 + theta2)
-    y2 = y1 + KNEE_FOOT_LENGTH * np.sin(theta1 + theta2)
+
+    # Angle of the lower leg relative to horizontal
+    theta_lower = theta1 + theta2 - np.pi
+
+    # Position of foot
+    x2 = x1 + KNEE_FOOT_LENGTH * np.cos(theta_lower)
+    y2 = y1 + KNEE_FOOT_LENGTH * np.sin(theta_lower)
+
     if apply_offset:
         x2 -= offset_x
         y2 -= offset_y
+
     return x1, y1, x2, y2
 
 
@@ -102,6 +113,7 @@ def update_leg(leg, knee_joint_angle, hip_leg_joint_angle):
 
 
 # ==== Send Angles to Arduino ====
+# ==== Send Angles to Arduino ====
 def send_all_angles():
     if any(ignore_slider_callback):
         return
@@ -116,15 +128,37 @@ def send_all_angles():
         except Exception as e:
             print(f"Error processing angles for Leg {leg+1}: {e}")
             values.extend(["0", "0", "0"])
-    command = " ".join(values) + "\n"
+
+    # Format: <val1,val2,val3,...>
+    command = "<" + ",".join(values) + ">"
     if ser and ser.is_open:
         try:
             ser.write(command.encode())
-            print(f"Sent: {command.strip()}")
+            now = datetime.now()
+            minute = now.strftime("%M")
+            second = now.strftime("%S")
+            millisecond = int(now.microsecond / 1000)
+            print(f"Sent: {minute}:{second}:{millisecond}:- {command}")
         except Exception as e:
             print(f"Serial error: {e}")
     else:
         print(f"Error: Serial port {SERIAL_PORT} not available")
+
+
+sync_states = [False for _ in range(NUM_LEGS)]  # Track which legs are synced
+
+
+def update_synced_legs(theta_knee_deg, theta_hip_deg, x, y):
+    global ignore_slider_callback
+    synced_legs = [i for i in range(NUM_LEGS) if sync_states[i]]
+    for i in synced_legs:
+        ignore_slider_callback[i] = True
+        sliders[i][0].set_val(theta_knee_deg)
+        sliders[i][1].set_val(theta_hip_deg)
+        sliders[i][2].set_val(x)
+        sliders[i][3].set_val(y)
+        ignore_slider_callback[i] = False
+        update_leg(i, theta_knee_deg, theta_hip_deg)
 
 
 # ==== Inverse Kinematics ====
@@ -132,17 +166,43 @@ def inverse_kinematics(x, y):
     # Convert display coordinates back to original coordinates
     x_orig = x + offset_x
     y_orig = y + offset_y
-    D = (x_orig**2 + y_orig**2 - HIP_KNEE_LENGTH**2 - KNEE_FOOT_LENGTH**2) / (
+
+    # Distance from origin to target
+    L = np.hypot(x_orig, y_orig)
+
+    # Check reachability
+    if L > HIP_KNEE_LENGTH + KNEE_FOOT_LENGTH or L < abs(
+        HIP_KNEE_LENGTH - KNEE_FOOT_LENGTH
+    ):
+        return None, None
+
+    # Law of cosines for knee angle (inner angle)
+    cos_knee = (HIP_KNEE_LENGTH**2 + KNEE_FOOT_LENGTH**2 - L**2) / (
         2 * HIP_KNEE_LENGTH * KNEE_FOOT_LENGTH
     )
-    if np.abs(D) > 1.0:
-        return None, None
-    theta_knee = np.arccos(D)  # Knee (θ1)
-    theta_hip = np.arctan2(y_orig, x_orig) - np.arctan2(
-        KNEE_FOOT_LENGTH * np.sin(theta_knee),
-        HIP_KNEE_LENGTH + KNEE_FOOT_LENGTH * np.cos(theta_knee),
+    cos_knee = np.clip(cos_knee, -1.0, 1.0)
+    theta_knee = np.arccos(cos_knee)
+
+    # Law of cosines for angle between thigh and target line
+    cos_phi = (HIP_KNEE_LENGTH**2 + L**2 - KNEE_FOOT_LENGTH**2) / (
+        2 * HIP_KNEE_LENGTH * L
     )
-    return np.degrees(theta_knee), np.degrees(theta_hip)
+    cos_phi = np.clip(cos_phi, -1.0, 1.0)
+    phi = np.arccos(cos_phi)
+    # Angle from knee to target point
+    angle_to_knee = np.arctan2(y_orig, x_orig) - theta_knee
+
+    # Angle from origin to target point
+    angle_to_target = np.arctan2(y_orig, x_orig)
+
+    # Hip angle is angle to target minus φ
+    theta_hip = angle_to_target + phi
+
+    # Convert to degrees
+    theta_knee_deg = np.degrees(theta_knee)
+    theta_hip_deg = np.degrees(theta_hip)
+
+    return theta_knee_deg, theta_hip_deg
 
 
 # ==== Slider and Mouse Handlers ====
@@ -152,8 +212,20 @@ def on_slider_change(leg):
             return
         t1 = sliders[leg][0].val  # Knee
         t2 = sliders[leg][1].val  # Hip
+        x = sliders[leg][2].val  # Target X (display coordinates)
+        y = sliders[leg][3].val  # Target Y (display coordinates)
         # Update leg plot
-        update_leg(leg, t1, t2)
+        leg_not_synced = False
+        if not sync_states[leg]:
+            sync_states[leg] = True  # Enable sync for this leg
+            leg_not_synced = True
+
+            update_synced_legs(t1, t2, x, y)
+
+        if leg_not_synced:
+            sync_states[leg] = False  # Reset sync state after update
+
+        # update_leg(leg, t1, t2)
         # Compute forward kinematics to get new X, Y (with offset)
         x1, y1, x2, y2 = forward_kinematics(t1, t2, apply_offset=False)
         # Update X, Y sliders
@@ -226,31 +298,45 @@ def apply_ik_and_update(leg, x, y):
     sliders[leg][2].set_val(x)  # Target X (display)
     sliders[leg][3].set_val(y)  # Target Y (display)
     ignore_slider_callback[leg] = False
-    update_leg(leg, theta_knee_deg, theta_hip_deg)
+    # update_leg(leg, theta_knee_deg, theta_hip_deg)
+
+    leg_not_synced = False
+    if not sync_states[leg]:
+        sync_states[leg] = True  # Enable sync for this leg
+        leg_not_synced = True
+
+    update_synced_legs(theta_knee_deg, theta_hip_deg, x, y)
+
+    if leg_not_synced:
+        sync_states[leg] = False  # Reset sync state after update
+
     send_all_angles()
 
 
 # ==== Reset Button Handler ====
 def reset_angles(leg):
-    global ignore_slider_callback
-    ignore_slider_callback[leg] = True
-    sliders[leg][0].set_val(JOINT_ANGLES_INIT[0])  # Reset Knee to 75
-    sliders[leg][1].set_val(JOINT_ANGLES_INIT[1])  # Reset Hip to -145
-    sliders[leg][2].set_val(
-        forward_kinematics(
-            JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], apply_offset=False
-        )[2]
-        - offset_x
-    )  # Reset Target X to 0 (display coordinates)
-    sliders[leg][3].set_val(
-        forward_kinematics(
-            JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], apply_offset=False
-        )[3]
-        - offset_y
-    )  # Reset Target Y to 0 (display coordinates)
-    ignore_slider_callback[leg] = False
-    update_leg(leg, JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1])
+    _, _, x, y = forward_kinematics(
+        JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], apply_offset=True
+    )
+
+    leg_not_synced = False
+    if not sync_states[leg]:
+        sync_states[leg] = True  # Enable sync for this leg
+        leg_not_synced = True
+
+    update_synced_legs(JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], x, y)
+
+    if leg_not_synced:
+        sync_states[leg] = False  # Reset sync state after update
+
     send_all_angles()
+
+
+# Store checkbox states and widgets
+checkboxes = [None for _ in range(NUM_LEGS)]
+
+# Add checkboxes above each subplot
+checkbox_axes = []
 
 
 # ==== Create Sliders and Buttons ====
@@ -309,6 +395,18 @@ for leg in range(NUM_LEGS):
     # Add reset button
     buttons[leg] = Button(ax_reset, f"Reset Leg {leg+1}")
     buttons[leg].on_clicked(lambda x, l=leg: reset_angles(l))
+    checkbox_ax = plt.axes([0.07 + col * 0.4, 0.95 - row * 0.4, 0.08, 0.02])
+    checkbox = CheckButtons(checkbox_ax, [f"Sync Leg {leg+1}"], [False])
+    checkboxes[leg] = checkbox
+
+    def make_handler(leg_index):
+        def handler(label):
+            sync_states[leg_index] = not sync_states[leg_index]
+            print(f"Leg {leg_index+1} sync set to {sync_states[leg_index]}")
+
+        return handler
+
+    checkbox.on_clicked(make_handler(leg))
 
 # ==== Register Events ====
 fig.canvas.mpl_connect("button_press_event", on_press)

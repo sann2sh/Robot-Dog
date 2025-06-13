@@ -19,6 +19,7 @@ void loop() {
       int servoNum = input.substring(0, sep).toInt();
       int pulse = input.substring(sep + 1).toInt();
       pwm.setPWM(servoNum, 0, pulse);
+      
     }
   }
 }
