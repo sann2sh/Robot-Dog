@@ -113,7 +113,7 @@ def update_leg(leg, knee_joint_angle, hip_leg_joint_angle):
 
 
 # ==== Send Angles to Arduino ====
-
+# ==== Send Angles to Arduino ====
 def send_all_angles():
     if any(ignore_slider_callback):
         return
@@ -215,7 +215,16 @@ def on_slider_change(leg):
         x = sliders[leg][2].val  # Target X (display coordinates)
         y = sliders[leg][3].val  # Target Y (display coordinates)
         # Update leg plot
-        update_synced_legs(t1, t2, x, y)
+        leg_not_synced = False
+        if not sync_states[leg]:
+            sync_states[leg] = True  # Enable sync for this leg
+            leg_not_synced = True
+
+            update_synced_legs(t1, t2, x, y)
+
+        if leg_not_synced:
+            sync_states[leg] = False  # Reset sync state after update
+
         # update_leg(leg, t1, t2)
         # Compute forward kinematics to get new X, Y (with offset)
         x1, y1, x2, y2 = forward_kinematics(t1, t2, apply_offset=False)
@@ -291,35 +300,35 @@ def apply_ik_and_update(leg, x, y):
     ignore_slider_callback[leg] = False
     # update_leg(leg, theta_knee_deg, theta_hip_deg)
 
+    leg_not_synced = False
+    if not sync_states[leg]:
+        sync_states[leg] = True  # Enable sync for this leg
+        leg_not_synced = True
+
     update_synced_legs(theta_knee_deg, theta_hip_deg, x, y)
+
+    if leg_not_synced:
+        sync_states[leg] = False  # Reset sync state after update
 
     send_all_angles()
 
 
 # ==== Reset Button Handler ====
 def reset_angles(leg):
-    # global ignore_slider_callback
-    # ignore_slider_callback[leg] = True
-    # sliders[leg][0].set_val(JOINT_ANGLES_INIT[0])  # Reset Knee to 75
-    # sliders[leg][1].set_val(JOINT_ANGLES_INIT[1])  # Reset Hip to -145
-    # sliders[leg][2].set_val(
-    #     forward_kinematics(
-    #         JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], apply_offset=False
-    #     )[2]
-    #     - offset_x
-    # )  # Reset Target X to 0 (display coordinates)
-    # sliders[leg][3].set_val(
-    #     forward_kinematics(
-    #         JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], apply_offset=False
-    #     )[3]
-    #     - offset_y
-    # )  # Reset Target Y to 0 (display coordinates)
-    ignore_slider_callback[leg] = False
-    # update_leg(leg, JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1])
     _, _, x, y = forward_kinematics(
         JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], apply_offset=True
     )
+
+    leg_not_synced = False
+    if not sync_states[leg]:
+        sync_states[leg] = True  # Enable sync for this leg
+        leg_not_synced = True
+
     update_synced_legs(JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1], x, y)
+
+    if leg_not_synced:
+        sync_states[leg] = False  # Reset sync state after update
+
     send_all_angles()
 
 
