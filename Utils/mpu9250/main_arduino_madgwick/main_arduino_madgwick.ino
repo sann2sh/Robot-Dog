@@ -59,7 +59,7 @@ void loop() {
          ESC.write(1095);
      }
    */     
-  //sendToPC(&eul.roll_e, &eul.pitch_e, &eul.yaw_e);*/
+  sendToPC(&eul.roll_e, &eul.pitch_e, &eul.yaw_e);*/
   //delayMicroseconds(500);
-  while(millis()-tstart<4);
+  while(millis()-tstart<10);
 }

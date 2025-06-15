@@ -80,3 +80,19 @@ TAU_AZ = sqrt(3)/(2*pi*std_markov_bias_accelZ);
 TAU_GX = sqrt(3)/(2*pi*std_markov_bias_gyroX);
 TAU_GY = sqrt(3)/(2*pi*std_markov_bias_gyroY);
 TAU_GZ = sqrt(3)/(2*pi*std_markov_bias_gyroZ);
+
+% --- Q Matrix (Gyroscope variance) ---
+var_gyroX = var(gyroX - mean_gyroX);
+var_gyroY = var(gyroY - mean_gyroY);
+var_gyroZ = var(gyroZ - mean_gyroZ);
+
+fprintf('// Gyro process noise covariance Q (rad^2/s^2)\n');
+fprintf('const double Q[3] = {%.16f, %.16f, %.16f};\n\n', var_gyroX, var_gyroY, var_gyroZ);
+
+% --- R Matrix (Accelerometer + Magnetometer) ---
+var_accelX = var(accelX - mean_accelX);
+var_accelY = var(accelY - mean_accelY);
+var_accelZ = var(accelZ - mean_accelZ);
+
+fprintf('// Measurement noise covariance R (accelerometer + magnetometer)\n');
+fprintf('const double R[6] = {%.16f, %.16f, %.16f};\n',var_accelX, var_accelY, var_accelZ);
