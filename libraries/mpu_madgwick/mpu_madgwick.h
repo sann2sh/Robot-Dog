@@ -6,16 +6,16 @@
 #define GRAVITY 9.802 // The gravity acceleration in New York City
 
 // Calibration outcomes
-#define GYRO_X_OFFSET 0.0001390
-#define GYRO_Y_OFFSET 0.0000644
-#define GYRO_Z_OFFSET -0.0001361
+#define GYRO_X_OFFSET 0.0003547
+#define GYRO_Y_OFFSET 0.0002904
+#define GYRO_Z_OFFSET 0.0000442
 
-#define ACCEL_X_OFFSET -1.3978244
-#define ACCEL_Y_OFFSET -10.3443785
-#define ACCEL_Z_OFFSET -9.1945095
+#define ACCEL_X_OFFSET -1.7587781
+#define ACCEL_Y_OFFSET -8.6502850
+#define ACCEL_Z_OFFSET -9.2377464
 
-const float magn_ellipsoid_center[3] = {25.111, 17.7601, -16.9015};
-const float magn_ellipsoid_transform[3][3] = {{0.906375, -0.0278575, 0.00545824}, {-0.0278575, 0.923119, 0.0534436}, {0.00545824, 0.0534436, 0.960533}};
+const float magn_ellipsoid_center[3] = {-16.444, 123.131, -60.0703};
+const float magn_ellipsoid_transform[3][3] = {{0.887227, 0.0186386, 0.0175599}, {0.0186386, 0.878481, 0.0445495}, {0.0175599, 0.0445495, 0.978254}};
 
 // Set structs for converting result from Quaternion to Euler angles
 struct Quaternion {

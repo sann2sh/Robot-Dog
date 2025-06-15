@@ -1,9 +1,21 @@
 % read magnetometer data from Processing Sketch directory
 % Input the path of csv file produced by Collect_Data.py
-M = readmatrix('D:\MAJOR PROJECT\Project flight computer codes\MPU 9250\madgwick filter complete from calibration\magnetometer calibration\python data logger\magnetometer.csv');
-x = M(:,1);
-y = M(:,2);
-z = M(:,3);
+close all
+clear all
+clc
+
+M = readmatrix('LoggedData.csv');
+
+timeInit = M(1,1);
+timeFinal = M(end,1);
+totalTime = timeFinal - timeInit;      % Total duration in seconds (assuming time is in seconds)
+numSamples = size(M, 1);               % Total number of samples
+samplingRate = (numSamples - 1) / totalTime *1000;  % Hz
+fprintf('Sampling Rate: %.2f Hz\n', samplingRate);
+
+x = M(:,2);
+y = M(:,3);
+z = M(:,4);
 
 % do ellipsoid fitting
 [e_center, e_radii, e_eigenvecs, e_algebraic] = ellipsoid_fit([x, y, z]);
