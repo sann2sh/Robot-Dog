@@ -15,11 +15,11 @@ config_dir = os.path.abspath(os.path.join(__file__, "../../../.."))
 sys.path.append(config_dir)
 
 # Import the config module
-from config import BAUD_RATE
-from config import SERIAL_PORT
+from config import BAUD_RATE_SEND
+from config import SERIAL_PORT_SEND
 
 try:
-    ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+    ser = serial.Serial(SERIAL_PORT_SEND, BAUD_RATE_SEND, timeout=1)
     time.sleep(2)
 except Exception as e:
     ser = None
@@ -338,37 +338,45 @@ checkboxes = [None for _ in range(NUM_LEGS)]
 # Add checkboxes above each subplot
 checkbox_axes = []
 
+# You need these to store button objects to prevent them from being garbage collected
+slider_buttons_up = [[None, None] for _ in range(NUM_LEGS)]  # [ [x_up, y_up], ... ]
+slider_buttons_down = [
+    [None, None] for _ in range(NUM_LEGS)
+]  # [ [x_down, y_down], ... ]
 
-# ==== Create Sliders and Buttons ====
+
 for leg in range(NUM_LEGS):
     row = leg // 2
     col = leg % 2
-    # Place sliders below each quadrant, aligned with subplot
-    base_x = 0.05 + col * 0.55 + 0.1  # Left edge of each quadrant
-    base_y = 0.28 - row * 0.15  # Space below each row
+
+    base_x = 0.05 + col * 0.55 + 0.05
+    base_y = 0.28 - row * 0.15
+
+    # Sliders
     ax_theta1 = plt.axes([base_x, base_y - 0.00, 0.25, 0.02])
     ax_theta2 = plt.axes([base_x, base_y - 0.02, 0.25, 0.02])
     ax_x = plt.axes([base_x, base_y - 0.04, 0.25, 0.02])
     ax_y = plt.axes([base_x, base_y - 0.06, 0.25, 0.02])
+
     ax_reset = plt.axes([base_x, base_y - 0.115, 0.25, 0.03])  # Button below sliders
 
     sliders[leg][0] = Slider(
         ax_theta1,
-        f"Leg {leg+1} Knee Angle",
+        f"Leg {leg+1} Knee",
         JOINT_RANGES[0][0],
         JOINT_RANGES[0][1],
-        valinit=JOINT_ANGLES_INIT[0],  # Initial knee angle
+        valinit=JOINT_ANGLES_INIT[0],
     )
     sliders[leg][1] = Slider(
         ax_theta2,
-        f"Leg {leg+1} Hip Angle",
+        f"Leg {leg+1} Hip",
         JOINT_RANGES[1][0],
         JOINT_RANGES[1][1],
-        valinit=JOINT_ANGLES_INIT[1],  # Initial hip angle
+        valinit=JOINT_ANGLES_INIT[1],
     )
     sliders[leg][2] = Slider(
         ax_x,
-        f"Leg {leg+1} Target X",
+        f"Leg {leg+1} X",
         -200 - offset_x,
         200 - offset_x,
         valinit=forward_kinematics(
@@ -378,7 +386,7 @@ for leg in range(NUM_LEGS):
     )
     sliders[leg][3] = Slider(
         ax_y,
-        f"Leg {leg+1} Target Y",
+        f"Leg {leg+1} Y",
         -400 - offset_y,
         100 - offset_y,
         valinit=forward_kinematics(
@@ -386,6 +394,31 @@ for leg in range(NUM_LEGS):
         )[3]
         - offset_y,
     )
+
+    # Buttons for X
+    ax_x_up = plt.axes([base_x + 0.29, base_y - 0.04, 0.02, 0.02])
+    ax_x_down = plt.axes([base_x + 0.32, base_y - 0.04, 0.02, 0.02])
+    btn_x_up = Button(ax_x_up, "▲")
+    btn_x_down = Button(ax_x_down, "▼")
+
+    # Buttons for Y
+    ax_y_up = plt.axes([base_x + 0.29, base_y - 0.06, 0.02, 0.02])
+    ax_y_down = plt.axes([base_x + 0.32, base_y - 0.06, 0.02, 0.02])
+    btn_y_up = Button(ax_y_up, "▲")
+    btn_y_down = Button(ax_y_down, "▼")
+
+    # Store buttons to avoid GC
+    slider_buttons_up[leg] = [btn_x_up, btn_y_up]
+    slider_buttons_down[leg] = [btn_x_down, btn_y_down]
+
+    # Callbacks for button clicks
+    def make_callback(slider, delta):
+        return lambda event: slider.set_val(slider.val + delta)
+
+    btn_x_up.on_clicked(make_callback(sliders[leg][2], +1))
+    btn_x_down.on_clicked(make_callback(sliders[leg][2], -1))
+    btn_y_up.on_clicked(make_callback(sliders[leg][3], +1))
+    btn_y_down.on_clicked(make_callback(sliders[leg][3], -1))
 
     sliders[leg][0].on_changed(on_slider_change(leg))
     sliders[leg][1].on_changed(on_slider_change(leg))

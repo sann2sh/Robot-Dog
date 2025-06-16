@@ -34,17 +34,15 @@ if not imu_uc.is_open():
     )
     sys.exit(1)
 
-# motor_uc = SerialComm(SERIAL_PORT_SEND, BAUD_RATE_SEND)
-# if not motor_uc.is_open():
-#     print(
-#         f"[ERROR] Could not open serial port {SERIAL_PORT_SEND} for motor communication."
-#     )
-#     sys.exit(1)
+motor_uc = SerialComm(SERIAL_PORT_SEND, BAUD_RATE_SEND)
+if not motor_uc.is_open():
+    print(
+        f"[ERROR] Could not open serial port {SERIAL_PORT_SEND} for motor communication."
+    )
+    sys.exit(1)
 
 # Initialize PID stabilizer
-pid_leg = PIDLegStabilizer(
-    kp_pitch=0.8, ki_pitch=0.1, kd_pitch=0.05, kp_roll=0.8, ki_roll=0.1, kd_roll=0.05
-)
+pid_leg = PIDLegStabilizer()
 pid_leg.set_setpoint(0.0, 0.0)  # desired pitch and roll setpoints
 
 
@@ -69,10 +67,13 @@ for leg in range(NUM_LEGS):
     (target_dots[row][col],) = ax.plot([], [], "rx", markersize=10)
 
 # Initial foot positions
-foot_positions = [
-    forward_kinematics(JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1])[2:]
-    for _ in range(NUM_LEGS)
-]
+# foot_positions = [
+#     forward_kinematics(JOINT_ANGLES_INIT[0], JOINT_ANGLES_INIT[1])[2:]
+#     for _ in range(NUM_LEGS)
+# ]
+
+foot_positions = [[44, -214] for _ in range(NUM_LEGS)]
+
 print(foot_positions)
 
 
@@ -95,13 +96,19 @@ slider_ax_kp_roll = plt.axes([0.6, 0.25, 0.3, 0.02])
 slider_ax_ki_roll = plt.axes([0.6, 0.22, 0.3, 0.02])
 slider_ax_kd_roll = plt.axes([0.6, 0.19, 0.3, 0.02])
 
-slider_kp_pitch = Slider(slider_ax_kp_pitch, "Kp Pitch", 0.0, 5.0, valinit=0.8)
-slider_ki_pitch = Slider(slider_ax_ki_pitch, "Ki Pitch", 0.0, 1.0, valinit=0.1)
-slider_kd_pitch = Slider(slider_ax_kd_pitch, "Kd Pitch", 0.0, 1.0, valinit=0.05)
+slider_kp_pitch = Slider(
+    slider_ax_kp_pitch, "Kp Pitch", 0.0, 5.0, valinit=pid_leg.kp_pitch
+)
+slider_ki_pitch = Slider(
+    slider_ax_ki_pitch, "Ki Pitch", 0.0, 1.0, valinit=pid_leg.ki_pitch
+)
+slider_kd_pitch = Slider(
+    slider_ax_kd_pitch, "Kd Pitch", 0.0, 1.0, valinit=pid_leg.kd_pitch
+)
 
-slider_kp_roll = Slider(slider_ax_kp_roll, "Kp Roll", 0.0, 5.0, valinit=0.8)
-slider_ki_roll = Slider(slider_ax_ki_roll, "Ki Roll", 0.0, 1.0, valinit=0.1)
-slider_kd_roll = Slider(slider_ax_kd_roll, "Kd Roll", 0.0, 1.0, valinit=0.05)
+slider_kp_roll = Slider(slider_ax_kp_roll, "Kp Roll", 0.0, 5.0, valinit=pid_leg.kp_roll)
+slider_ki_roll = Slider(slider_ax_ki_roll, "Ki Roll", 0.0, 1.0, valinit=pid_leg.ki_roll)
+slider_kd_roll = Slider(slider_ax_kd_roll, "Kd Roll", 0.0, 1.0, valinit=pid_leg.kd_roll)
 
 
 # === Function to update PID values ===
@@ -124,7 +131,9 @@ slider_ki_roll.on_changed(update_pid_gains)
 slider_kd_roll.on_changed(update_pid_gains)
 
 # ==== Main Loop ====
-dt = 0.01  # 10ms
+dt = 0.05  # 50ms
+loop_counter = 0
+last_print_time = time.time()
 try:
     while plt.fignum_exists(fig.number):
         start_time = time.time()
@@ -153,7 +162,8 @@ try:
         for leg in range(NUM_LEGS):
             # Original foot x, y
             x, y = foot_positions[leg]
-            y += deltas[leg]  # Apply pitch/roll stabilization offset
+            new_y = y + deltas[leg]  # Apply pitch/roll stabilization offset
+            foot_positions[leg][1] = new_y  # Update y position
 
             # Compute IK for new position
             try:
@@ -180,12 +190,20 @@ try:
 
         # Format and send to Arduino
         command = "<" + ",".join(angle_values) + ">"
-        # if motor_uc and motor_uc.is_open:
-        #     try:
-        #         motor_uc.send_line(command)
-        #         print(f"[SEND] {command}")
-        #     except Exception as e:
-        #         print(f"[ERROR] Sending to motor_uc failed: {e}")
+        if motor_uc and motor_uc.is_open:
+            try:
+                motor_uc.write_line(command)
+                print(f"[SEND] {command}")
+            except Exception as e:
+                print(f"[ERROR] Sending to motor_uc failed: {e}")
+
+        loop_counter += 1
+        current_time = time.time()
+        if current_time - last_print_time >= 1.0:
+            frequency = loop_counter / (current_time - last_print_time)
+            print(f"[FREQ] Loop running at {frequency:.2f} Hz")
+            loop_counter = 0
+            last_print_time = current_time
 
         fig.canvas.flush_events()
         plt.pause(0.001)

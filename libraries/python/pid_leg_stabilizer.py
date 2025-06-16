@@ -1,10 +1,10 @@
 class PIDLegStabilizer:
     def __init__(
         self,
-        kp_pitch=1.0,
+        kp_pitch=0.0,
         ki_pitch=0.0,
         kd_pitch=0.0,
-        kp_roll=1.0,
+        kp_roll=0.0,
         ki_roll=0.0,
         kd_roll=0.0,
     ):
@@ -64,9 +64,9 @@ class PIDLegStabilizer:
         self.prev_roll_error = roll_error
 
         # Compute leg delta_y offsets (same pattern, outputs just vary)
-        delta_y_rf = +pitch_output + roll_output  # Right Front
-        delta_y_lf = +pitch_output - roll_output  # Left Front
-        delta_y_rb = -pitch_output + roll_output  # Right Back
-        delta_y_lb = -pitch_output - roll_output  # Left Back
+        delta_y_rf = -pitch_output + roll_output  # Right Front
+        delta_y_lf = -pitch_output - roll_output  # Left Front
+        delta_y_rb = +pitch_output + roll_output  # Right Back
+        delta_y_lb = +pitch_output - roll_output  # Left Back
 
         return [delta_y_lf, delta_y_rf, delta_y_lb, delta_y_rb]
