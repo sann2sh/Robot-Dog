@@ -11,6 +11,8 @@ MPU9250 IMU(Wire,0x68);
 
 AHRS_EKF ahrs_ekf;
 
+YPR ypr;
+
 
 // Read data from MPU9250
 void imu_read() {
@@ -118,6 +120,22 @@ void ahrs_setup()
   ahrs_ekf.init(Q, R, g, r, Ts, P, q_temp);
 }
 
+void toYPR() {
+  // yaw: (about Z axis)
+  ypr.yaw = atan2(2*q[1]*q[2] - 2*q[0]*q[3], 2*q[0]*q[0] + 2*q[1]*q[1] - 1);
+
+  double gravityX = 2 * (q[1]*q[3] - q[0]*q[2]);
+  double gravityY = 2 * (q[0]*q[1] + q[2]*q[3]);
+  double gravityZ = q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3];
+
+  // pitch: (nose up/down, about Y axis)
+  ypr.pitch = atan(gravityX / sqrt(gravityY*gravityY + gravityZ*gravityZ));
+
+  // roll: (tilt left/right, about X axis)
+  ypr.roll = atan(gravityY / sqrt(gravityX*gravityX + gravityZ*gravityZ));
+}
+
+
 void ahrs_update()
 {
   imu_read();
@@ -128,4 +146,6 @@ void ahrs_update()
 
   // update
   q = ahrs_ekf.update(accel, magnetom, gyro);
+  
+  toYPR();
 }

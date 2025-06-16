@@ -7,7 +7,7 @@ from tkinter import ttk
 import serial
 
 # Add the parent directory to the system path
-config_dir = os.path.abspath(os.path.join(__file__, "../../.."))
+config_dir = os.path.abspath(os.path.join(__file__, "../../../.."))
 sys.path.append(config_dir)
 
 # Import the config module
@@ -84,10 +84,10 @@ def send_all_leg_data():
             except Exception as e:
                 status_var.set(f"Error in send_all_leg_data: {e}")
                 values.append("0")
-    
+
     # Format as: <val1,val2,...,valN>
     command = "<" + ",".join(values) + ">\n"
-    
+
     if ser and ser.is_open:
         try:
             ser.write(command.encode("utf-8"))
@@ -96,9 +96,8 @@ def send_all_leg_data():
             status_var.set(f"Serial Error: {e}")
     else:
         status_var.set(f"Error: Serial port {SERIAL_PORT} not available")
-    
-    print("Sent:", command.strip())
 
+    print("Sent:", command.strip())
 
 
 # === Callback for slider move ===
@@ -194,7 +193,7 @@ for leg in range(NUM_LEGS):
             from_=min_val,
             to=max_val,
             orient="horizontal",
-            length=max_val-min_val,
+            length=max_val - min_val,
             command=lambda val, l=leg, jj=j: on_slider_change(val, l, jj),
         )
         slider.set(mid_val)

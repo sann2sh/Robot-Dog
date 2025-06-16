@@ -45,6 +45,14 @@ const double R[6] = {0.0001175380701662, 0.0001196885607162, 0.0003229845822837,
 
 extern double* q;
 
+struct YPR {
+    float yaw, pitch, roll;
+  };
+
+
+extern YPR ypr;
+
+
 void imu_read();
 void compensate_imu_errors();
 void normalize_AM();
@@ -52,3 +60,4 @@ void Matrix_Vector_Multiply(const float a[3][3], const double b[3], double out[3
 void imu_setup();
 void ahrs_setup();
 void ahrs_update();
+void toYPR();

@@ -11,7 +11,7 @@ from matplotlib.widgets import CheckButtons
 from matplotlib.widgets import Slider
 
 # Add the parent directory to the system path
-config_dir = os.path.abspath(os.path.join(__file__, "../../.."))
+config_dir = os.path.abspath(os.path.join(__file__, "../../../.."))
 sys.path.append(config_dir)
 
 # Import the config module

@@ -5,14 +5,15 @@ import tkinter as tk
 from tkinter import ttk
 
 import serial
-pulse_max=530
-pulse_min=100
 
-pulse_for_zero_deg=100
-pulse_for_180_deg=530
+pulse_max = 530
+pulse_min = 100
+
+pulse_for_zero_deg = 100
+pulse_for_180_deg = 530
 
 # Add the parent directory to the system path
-config_dir = os.path.abspath(os.path.join(__file__, "../../.."))
+config_dir = os.path.abspath(os.path.join(__file__, "../../../.."))
 sys.path.append(config_dir)
 
 # Import the config module
@@ -27,17 +28,24 @@ except serial.SerialException:
     print(f"Error: Could not open serial port {SERIAL_PORT}")
     ser = None
 
+
 def pulse_to_angle(pulse):
     # Map pulse from range pulse_max to pulse_min to 0-180
-    return round((pulse - pulse_for_zero_deg) * 180 / (pulse_for_180_deg - pulse_for_zero_deg))
+    return round(
+        (pulse - pulse_for_zero_deg) * 180 / (pulse_for_180_deg - pulse_for_zero_deg)
+    )
+
 
 def update_angle_label(idx, pulse):
     angle = pulse_to_angle(pulse)
     angle_labels[idx].config(text=f"{angle}°")
 
+
 def send_raw_pulse(servo_id, pulse):
     pulse = int(float(pulse))
-    pulse = max(pulse_min, min(pulse_max, pulse))  # limitting between max and min values
+    pulse = max(
+        pulse_min, min(pulse_max, pulse)
+    )  # limitting between max and min values
     if ser:
         command = f"{servo_id}:{pulse}\n"
         ser.write(command.encode("utf-8"))
@@ -48,10 +56,12 @@ def send_raw_pulse(servo_id, pulse):
         entry_boxes[servo_id].delete(0, tk.END)
         entry_boxes[servo_id].insert(0, str(pulse))
 
+
 def slider_changed(val, idx):
     pulse = int(float(val))
     servo_vars[idx].set(pulse)
     send_raw_pulse(idx, pulse)
+
 
 def step_pulse(idx, direction):
     current_val = servo_vars[idx].get()
@@ -60,6 +70,7 @@ def step_pulse(idx, direction):
     sliders[idx].set(new_val)
     send_raw_pulse(idx, new_val)
     entry_updated(idx)
+
 
 def entry_updated(idx):
     try:
@@ -71,12 +82,13 @@ def entry_updated(idx):
     except ValueError:
         pass
 
+
 # Create GUI
 root = tk.Tk()
 root.title("Servo Pulse Calibrator")
 root.geometry("1100x500")  # Slightly wider for angle labels
 
-initial_value = (pulse_max + pulse_min)/2
+initial_value = (pulse_max + pulse_min) / 2
 servo_vars = [tk.IntVar(value=initial_value) for _ in range(3)]
 value_labels = []
 entry_boxes = []
@@ -99,7 +111,7 @@ for i in range(3):
         to=pulse_max,
         orient="horizontal",
         variable=servo_vars[i],
-        length=pulse_max-pulse_min,
+        length=pulse_max - pulse_min,
         command=lambda val, idx=i: slider_changed(val, idx),
     )
     slider.grid(row=i, column=1, padx=10, pady=25)
