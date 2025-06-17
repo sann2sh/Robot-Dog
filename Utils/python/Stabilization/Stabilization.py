@@ -72,7 +72,7 @@ for leg in range(NUM_LEGS):
 #     for _ in range(NUM_LEGS)
 # ]
 
-foot_positions = [[44, -214] for _ in range(NUM_LEGS)]
+foot_positions = [[-95, -195], [-95, -195], [95, -195], [95, -195]]
 
 print(foot_positions)
 
@@ -134,6 +134,7 @@ slider_kd_roll.on_changed(update_pid_gains)
 dt = 0.05  # 50ms
 loop_counter = 0
 last_print_time = time.time()
+
 try:
     while plt.fignum_exists(fig.number):
         start_time = time.time()
@@ -159,6 +160,8 @@ try:
 
         # Collect all angles and send in <val1,val2,...> format
         angle_values = []
+        ik_failed = False  # Track IK failures
+
         for leg in range(NUM_LEGS):
             # Original foot x, y
             x, y = foot_positions[leg]
@@ -173,8 +176,10 @@ try:
             except Exception as e:
                 print(f"[WARN] IK failed for leg {leg+1}: {e}")
                 # Send safe values in case of failure
-                angle_values.extend(["0", "0", "0"])
-                continue
+                # angle_values.extend(["0", "0", "0"])
+                ik_failed = True
+                break
+                # continue
 
             # Update plot
             update_leg(leg, knee_angle, hip_leg_angle)
@@ -187,15 +192,15 @@ try:
                     "0",  # Hip-Body fixed at 0
                 ]
             )
-
-        # Format and send to Arduino
-        command = "<" + ",".join(angle_values) + ">"
-        if motor_uc and motor_uc.is_open:
-            try:
-                motor_uc.write_line(command)
-                print(f"[SEND] {command}")
-            except Exception as e:
-                print(f"[ERROR] Sending to motor_uc failed: {e}")
+        if not ik_failed:
+            # Format and send to Arduino
+            command = "<" + ",".join(angle_values) + ">"
+            if motor_uc and motor_uc.is_open:
+                try:
+                    motor_uc.write_line(command)
+                    print(f"[SEND] {command}")
+                except Exception as e:
+                    print(f"[ERROR] Sending to motor_uc failed: {e}")
 
         loop_counter += 1
         current_time = time.time()
