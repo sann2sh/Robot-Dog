@@ -11,6 +11,8 @@
 #define HIP_LEG_JOINT    1
 #define HIP_BODY_JOINT   0
 
+const int pulse_offset[12] = {-11,14,7,11,-18,-13,11,2,0,-9,-15,-24};
+
 
 #define NUM_LEGS 4
 #define NUM_JOINTS 3
@@ -21,8 +23,14 @@
 #define LEG_4 3
 
 // Joint Pulse Limits
-#define PULSE_MIN        100 // 0 DEGREES
-#define PULSE_MAX        530 // 180 DEGREES
+#define PULSE_MIN   100 // 0 DEGREES
+#define PULSE_MAX   530 // 180 DEGREES
+
+#define PULSE_MIN_210   120
+#define PULSE_MAX_210   510
+
+#define PULSE_MIN_320   156
+#define PULSE_MAX_320   433
 
 
 // Joint Angle Limits
