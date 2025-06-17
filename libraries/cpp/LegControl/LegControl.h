@@ -40,8 +40,8 @@ const int pulse_offset[12] = {-11,14,7,11,-18,-13,11,2,0,-9,-15,-24};
 #define HIP_LEG_JOINT_ANGLE_MIN     -150
 #define HIP_LEG_JOINT_ANGLE_MAX     30    
 
-#define HIP_BODY_JOINT_ANGLE_MIN    -20
-#define HIP_BODY_JOINT_ANGLE_MAX    20
+#define HIP_BODY_JOINT_ANGLE_MIN    0
+#define HIP_BODY_JOINT_ANGLE_MAX    0
 
 void initializeLeg();
 void moveLeg(int leg, int joint, int angle);
