@@ -4,7 +4,7 @@
 #define NUM_JOINTS 3
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(2000000);
   while (!Serial); // Wait for serial on Leonardo-type boards
   Serial.println("Ready to receive joint angles...");
   initializeLeg();  // Setup servos
