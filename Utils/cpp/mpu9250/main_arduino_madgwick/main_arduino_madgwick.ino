@@ -25,22 +25,22 @@ void loop() {
   Serial.print(eul.yaw_e * 180.0 / PI);
   Serial.println(" ");
 */  
-/*
+// /*
   Serial.print("ypr\t");
   Serial.print(ypr.yaw * 180.0 / PI);
   Serial.print("\t");
   Serial.print(ypr.pitch * 180.0 / PI);
   Serial.print("\t");
   Serial.println(ypr.roll * 180.0 / PI);
-*/
-  Serial.print("quat\t");
-  Serial.print(qua.w);
-  Serial.print("\t");
-  Serial.print(qua.x);
-  Serial.print("\t");
-  Serial.print(qua.y);
-  Serial.print("\t");
-  Serial.println(qua.z);
+// */
+  // Serial.print("quat\t");
+  // Serial.print(qua.w);
+  // Serial.print("\t");
+  // Serial.print(qua.x);
+  // Serial.print("\t");
+  // Serial.print(qua.y);
+  // Serial.print("\t");
+  // Serial.println(qua.z);
 
     // for python visualization
 
@@ -59,7 +59,7 @@ void loop() {
          ESC.write(1095);
      }
    */     
-  //sendToPC(&eul.roll_e, &eul.pitch_e, &eul.yaw_e);*/
+  sendToPC(&eul.roll_e, &eul.pitch_e, &eul.yaw_e);*/
   //delayMicroseconds(500);
-  while(millis()-tstart<4);
+  while(millis()-tstart<10);
 }

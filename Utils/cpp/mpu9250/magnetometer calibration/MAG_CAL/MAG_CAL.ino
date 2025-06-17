@@ -3,6 +3,8 @@ MPU9250 IMU(Wire,0x68);
 
 float magnetom[3];
 
+unsigned long Time;
+
 void read_sensors() {
   IMU.readSensor();
   magnetom[0] = IMU.getMagX_uT();
@@ -10,19 +12,8 @@ void read_sensors() {
   magnetom[2] = IMU.getMagZ_uT();
 }
 
-
-void sendToPC(float* data1, float* data2, float* data3)
-{
-  byte* byteData1 = (byte*)(data1);
-  byte* byteData2 = (byte*)(data2);
-  byte* byteData3 = (byte*)(data3);
-  byte buf[12] = {byteData1[0], byteData1[1], byteData1[2], byteData1[3],
-                 byteData2[0], byteData2[1], byteData2[2], byteData2[3],
-                 byteData3[0], byteData3[1], byteData3[2], byteData3[3]};
-  Serial.write(buf, 12);
-}
-
 void setup() {
+  Serial.begin(2000000);
   // start communication with IMU 
   IMU.begin();
   // setting the accelerometer full scale range to +/-8G 
@@ -31,11 +22,22 @@ void setup() {
   IMU.setGyroRange(MPU9250::GYRO_RANGE_500DPS);
   // setting DLPF bandwidth to 20 Hz
   IMU.setDlpfBandwidth(MPU9250::DLPF_BANDWIDTH_41HZ);
-  // setting SRD to 19 for a 50 Hz update rate
+  // setting SRD to 3 for 250Hz sampling rate
   IMU.setSrd(9);
 }
 
 void loop() {
+  Time = millis();
+  
   read_sensors();
-  //delay(10);
+
+  Serial.print(Time);
+  Serial.print(",");
+  Serial.print(magnetom[0], 7);
+  Serial.print(",");
+  Serial.print(magnetom[1], 7);
+  Serial.print(",");
+  Serial.println(magnetom[2], 7);
+
+  while(millis()-Time<10); 
 }
