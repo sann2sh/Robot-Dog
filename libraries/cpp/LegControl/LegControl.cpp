@@ -9,12 +9,12 @@ void initializeLeg() {
 
 
   //Initalize all legs to midpoint
-  for (int leg = 0; leg < NUM_LEGS; leg++) {
-    for (int joint = 0; joint < NUM_JOINTS; joint++) {
-      int pulse = (PULSE_MIN + PULSE_MAX) / 2;
-      servoBoard.setPWM((leg) * 3 + joint, 0, pulse);
-    }
-  }
+  // for (int leg = 0; leg < NUM_LEGS; leg++) {
+  //   for (int joint = 0; joint < NUM_JOINTS; joint++) {
+  //     int pulse = (PULSE_MIN + PULSE_MAX) / 2;
+  //     servoBoard.setPWM((leg) * 3 + joint, 0, pulse);
+  //   }
+  // }
 }
 
 void moveLeg(int leg, int joint, int angle) {
@@ -54,5 +54,16 @@ void moveLeg(int leg, int joint, int angle) {
     pulse = PULSE_MIN + PULSE_MAX - pulse;   // Invert within range
   }
 
-  servoBoard.setPWM((leg) * 3 + joint, 0 , pulse);
+  if(leg==LEG_4 && joint==KNEE_JOINT){
+    pulse=map(pulse,PULSE_MIN,PULSE_MAX,PULSE_MIN_210,PULSE_MAX_210);
+  }
+
+    if(leg==LEG_2 && joint==KNEE_JOINT){
+    pulse=map(pulse,PULSE_MIN,PULSE_MAX,PULSE_MIN_320,PULSE_MAX_320);
+  }
+
+  int channel=((leg) * 3) + joint;
+  pulse=pulse+pulse_offset[channel];
+  servoBoard.setPWM(channel, 0 ,pulse);
+  // return pulse;
 }
