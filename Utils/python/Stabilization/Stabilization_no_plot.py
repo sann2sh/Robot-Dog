@@ -17,6 +17,7 @@ from serial_comm import SerialComm
 
 from config import BAUD_RATE_REC
 from config import BAUD_RATE_SEND
+from config import FOOT_POSITIONS_REST
 from config import NUM_LEGS
 from config import SERIAL_PORT_REC
 from config import SERIAL_PORT_SEND
@@ -27,7 +28,7 @@ def pid_process(shared_vars, stop_event):
     motor_uc = SerialComm(SERIAL_PORT_SEND, BAUD_RATE_SEND)
     pid_leg = PIDLegStabilizer()
     pid_leg.set_setpoint(0.0, 0.0)
-    foot_positions_rest = [[-95, -195], [-95, -195], [95, -195], [95, -195]]
+    foot_positions_rest = FOOT_POSITIONS_REST
     foot_positions = [pos.copy() for pos in foot_positions_rest]
 
     loop_counter = 0
