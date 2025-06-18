@@ -62,8 +62,9 @@ def pid_loop(foot_positions, foot_positions_lock):
         angle_values.extend([str(int(knee)), str(int(hip)), "0"])
 
     try:
-        motor_uc.write_line("<" + ",".join(angle_values) + ">")
-        print(f"[INIT] Sent walking position: {angle_values}")
+        command = "<" + ",".join(angle_values) + ">"
+        motor_uc.write_line(command)
+        print(f"[INIT] Sent walking position: {command}")
     except Exception as e:
         print(f"[ERROR] Send failed: {e}")
     time.sleep(1)
@@ -91,8 +92,8 @@ def pid_loop(foot_positions, foot_positions_lock):
         # For testing without motion:
         # pitch = 0.0
         # roll = 0.0
-
-        deltas = pid_leg.compute_leg_deltas(0, 0, 1 / sample_freq)
+        
+        deltas = pid_leg.compute_leg_deltas(pitch, roll, 1 / sample_freq)
         angle_values = []
         ik_failed = False
 
@@ -117,7 +118,9 @@ def pid_loop(foot_positions, foot_positions_lock):
 
         if not ik_failed:
             try:
-                motor_uc.write_line("<" + ",".join(angle_values) + ">")
+                command = "<" + ",".join(angle_values) + ">"
+                motor_uc.write_line(command)
+                # print(f"[SEND] {command}")
                 None
             except Exception as e:
                 print(f"[WARN] Failed to send angles: {e}")
@@ -136,9 +139,9 @@ def pid_loop(foot_positions, foot_positions_lock):
 
 
 def walk(foot_positions, foot_lock):
-    delay = 1.0
+    delay = 3.0
     steps = [
-        ([0], 0, STEP_LENGTH_Y),
+        ([0], 0, STEP_LENGTH_Y, pitch, roll),
         ([0], -STEP_LENGTH_X, 0),
         ([0], 0, -STEP_LENGTH_Y),
         ([1], 0, STEP_LENGTH_Y),
@@ -178,7 +181,7 @@ if __name__ == "__main__":
 
     time.sleep(10)
 
-    # Now you can walk while the PID thread is running
+    # # Now you can walk while the PID thread is running
     for _ in range(3):
         walk(foot_positions, foot_positions_lock)
         time.sleep(1)
