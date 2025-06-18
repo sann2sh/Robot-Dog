@@ -21,3 +21,9 @@ JOINT_ANGLES_INIT = [
 
 HIP_KNEE_LENGTH = 100  # Hip to knee
 KNEE_FOOT_LENGTH = 156  # Knee to foot
+
+FOOT_POSITIONS_REST = [[-95, -195], [-95, -195], [95, -195], [95, -195]]
+FOOT_POSITIONS_WALK = [[-50, -195], [-50, -195], [50, -195], [50, -195]]
+
+STEP_LENGTH_X = 100  # Step length in X direction
+STEP_LENGTH_Y = 70  # Step length in Y direction
